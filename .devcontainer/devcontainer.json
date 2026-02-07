@@ -2,13 +2,15 @@
   "name": "Home Assistant Dev",
   "context": "..",
   "dockerFile": "../Dockerfile.dev",
-  "postCreateCommand": "git config --global --add safe.directory ${containerWorkspaceFolder} && script/setup",
+  "postCreateCommand": "git config --global --add safe.directory ${containerWorkspaceFolder} && script/setup && npm install -g @google/gemini-cli@latest",
   "postStartCommand": "script/bootstrap",
   "containerEnv": {
     "PYTHONASYNCIODEBUG": "1"
   },
   "features": {
-    "ghcr.io/devcontainers/features/github-cli:1": {}
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    // Ensure Node.js is available if your base image doesn't have it
+    "ghcr.io/devcontainers/features/node:1": {}
   },
   // Port 5683 udp is used by Shelly integration
   "appPort": ["8123:8123", "5683:5683/udp"],
@@ -27,7 +29,8 @@
         "redhat.vscode-yaml",
         "esbenp.prettier-vscode",
         "GitHub.vscode-pull-request-github",
-        "GitHub.copilot"
+        "GitHub.copilot",
+        "google.gemini-code-assist"
       ],
       // Please keep this file in sync with settings in home-assistant/.vscode/settings.default.jsonc
       "settings": {
