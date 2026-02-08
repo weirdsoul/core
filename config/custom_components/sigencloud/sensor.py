@@ -7,7 +7,7 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.const import UnitOfTemperature
+from homeassistant.const import UnitOfPower
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -27,35 +27,40 @@ async def async_setup_entry(
     # username = config_entry.data.get("username")
 
     # 2. Initialize your sensors
-    new_devices = [ExampleSensor()]
+    new_devices = [SigenSensor(config_entry.runtime_data)]
 
     # 3. Add the sensors to Home Assistant
     async_add_entities(new_devices)
 
 
-class ExampleSensor(SensorEntity):
+class SigenSensor(SensorEntity):
     """Representation of a Sensor."""
 
     _attr_has_entity_name = True
-    _attr_name = "Example Temperature"
-    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
-    _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_name = "Load power"
+    _attr_native_unit_of_measurement = UnitOfPower.KILO_WATT
+    _attr_device_class = SensorDeviceClass.POWER
     _attr_state_class = SensorStateClass.MEASUREMENT
     # TODO: Set a unique ID for the sensor, e.g. serial number or MAC address
-    _attr_unique_id = "example_sensor"
+    _attr_unique_id = "load_power"
+
+    def __init__(self, sigen_instance) -> None:
+        """Initialize the sensor."""
+        self._sigen = sigen_instance
 
     @property
     def device_info(self) -> DeviceInfo:
         """Return the device info."""
         return DeviceInfo(
             identifiers={(DOMAIN, "example_device")},
-            name="Example Device",
-            manufacturer="SigenCloud",
+            name="Sigen Inverter",
+            manufacturer="Sigenergy",
         )
 
-    def update(self) -> None:
+    async def async_update(self) -> None:
         """Fetch new state data for the sensor.
 
         This is the only method that should fetch new data for Home Assistant.
         """
-        self._attr_native_value = 23
+        energy_flow = await self._sigen.get_energy_flow()
+        self._attr_native_value = energy_flow["loadPower"]

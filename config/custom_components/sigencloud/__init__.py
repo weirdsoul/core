@@ -11,11 +11,11 @@ from homeassistant.core import HomeAssistant
 # For your initial PR, limit it to 1 platform.
 _PLATFORMS: list[Platform] = [Platform.SENSOR]
 
-type New_NameConfigEntry = ConfigEntry[Sigen]
+type SigenConfigEntry = ConfigEntry[Sigen]
 
 
 # TODO Update entry annotation
-async def async_setup_entry(hass: HomeAssistant, entry: New_NameConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: SigenConfigEntry) -> bool:
     """Set up Sigen Cloud API from a config entry."""
 
     sigen = Sigen(
@@ -31,6 +31,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: New_NameConfigEntry) -> 
 
 
 # TODO Update entry annotation
-async def async_unload_entry(hass: HomeAssistant, entry: New_NameConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: SigenConfigEntry) -> bool:
     """Unload a config entry."""
     return await hass.config_entries.async_unload_platforms(entry, _PLATFORMS)
