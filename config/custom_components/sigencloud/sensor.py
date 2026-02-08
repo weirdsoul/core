@@ -7,60 +7,75 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.const import UnitOfPower
+from homeassistant.const import UnitOfEnergy, UnitOfPower
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.typing import ConfigType
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from . import SigenConfigEntry, SigenDataUpdateCoordinator
 from .const import DOMAIN
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    config_entry: ConfigType,
+    entry: SigenConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the SigenCloud sensors from a config entry."""
 
-    # 1. Get any data you saved during the config flow
-    # username = config_entry.data.get("username")
+    coordinator = entry.runtime_data
 
-    # 2. Initialize your sensors
-    new_devices = [SigenSensor(config_entry.runtime_data)]
+    new_devices = [
+        SigenEnergySensor(coordinator, "pvDayNrg", "Total PV Energy"),
+        SigenPowerSensor(coordinator, "pvPower", "Current PV Power"),
+        SigenPowerSensor(coordinator, "loadPower", "Current Load Power"),
+        SigenPowerSensor(coordinator, "buySellPower", "Grid Import/Export Power"),
+    ]
 
-    # 3. Add the sensors to Home Assistant
     async_add_entities(new_devices)
 
 
-class SigenSensor(SensorEntity):
-    """Representation of a Sensor."""
+class SigenEntity(CoordinatorEntity[SigenDataUpdateCoordinator]):
+    """Base class for Sigen entities."""
 
     _attr_has_entity_name = True
-    _attr_name = "Load power"
-    _attr_native_unit_of_measurement = UnitOfPower.KILO_WATT
-    _attr_device_class = SensorDeviceClass.POWER
-    _attr_state_class = SensorStateClass.MEASUREMENT
-    # TODO: Set a unique ID for the sensor, e.g. serial number or MAC address
-    _attr_unique_id = "load_power"
 
-    def __init__(self, sigen_instance) -> None:
-        """Initialize the sensor."""
-        self._sigen = sigen_instance
+    def __init__(
+        self, coordinator: SigenDataUpdateCoordinator, key: str, name: str
+    ) -> None:
+        """Initialize the Sigen entity."""
+        super().__init__(coordinator)
+        self._key = key
+        self._attr_unique_id = f"{key}"
+        self._attr_name = name
 
     @property
     def device_info(self) -> DeviceInfo:
         """Return the device info."""
         return DeviceInfo(
-            identifiers={(DOMAIN, "example_device")},
-            name="Sigen Inverter",
+            identifiers={(DOMAIN, self._key)},
+            name="Sigen Inverter",  # This will be refined later
             manufacturer="Sigenergy",
         )
 
-    async def async_update(self) -> None:
-        """Fetch new state data for the sensor.
+    @property
+    def native_value(self) -> float:
+        """Return the state of the sensor."""
+        return self.coordinator.data[self._key]
 
-        This is the only method that should fetch new data for Home Assistant.
-        """
-        energy_flow = await self._sigen.get_energy_flow()
-        self._attr_native_value = energy_flow["loadPower"]
+
+class SigenPowerSensor(SigenEntity, SensorEntity):
+    """Representation of a Sigen Power Sensor."""
+
+    _attr_device_class = SensorDeviceClass.POWER
+    _attr_native_unit_of_measurement = UnitOfPower.KILO_WATT
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+
+class SigenEnergySensor(SigenEntity, SensorEntity):
+    """Representation of a Sigen Energy Sensor."""
+
+    _attr_device_class = SensorDeviceClass.ENERGY
+    _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+    _attr_state_class = SensorStateClass.TOTAL_INCREASING
