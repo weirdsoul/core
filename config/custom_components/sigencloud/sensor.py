@@ -7,7 +7,7 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.const import UnitOfEnergy, UnitOfPower
+from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -27,10 +27,14 @@ async def async_setup_entry(
     coordinator = entry.runtime_data
 
     new_devices = [
-        SigenEnergySensor(coordinator, "pvDayNrg", "Total PV Energy"),
-        SigenPowerSensor(coordinator, "pvPower", "Current PV Power"),
-        SigenPowerSensor(coordinator, "loadPower", "Current Load Power"),
-        SigenPowerSensor(coordinator, "buySellPower", "Grid Import/Export Power"),
+        SigenEnergySensor(coordinator, entry, "pvDayNrg", "Total PV Energy"),
+        SigenPowerSensor(coordinator, entry, "pvPower", "Current PV Power"),
+        SigenPowerSensor(coordinator, entry, "loadPower", "Current Load Power"),
+        SigenPowerSensor(
+            coordinator, entry, "buySellPower", "Grid Import/Export Power"
+        ),
+        SigenPowerSensor(coordinator, entry, "batteryPower", "Battery Power"),
+        SigenBatterySensor(coordinator, entry, "batterySoc", "Battery SOC"),
     ]
 
     async_add_entities(new_devices)
@@ -42,27 +46,50 @@ class SigenEntity(CoordinatorEntity[SigenDataUpdateCoordinator]):
     _attr_has_entity_name = True
 
     def __init__(
-        self, coordinator: SigenDataUpdateCoordinator, key: str, name: str
+        self,
+        coordinator: SigenDataUpdateCoordinator,
+        entry: SigenConfigEntry,
+        key: str,
+        name: str,
     ) -> None:
         """Initialize the Sigen entity."""
         super().__init__(coordinator)
         self._key = key
-        self._attr_unique_id = f"{key}"
+        self._attr_unique_id = f"{entry.entry_id}-{key}"
         self._attr_name = name
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return the device info."""
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._key)},
-            name="Sigen Inverter",  # This will be refined later
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name=entry.title,
             manufacturer="Sigenergy",
+            model="Sigen Inverter",
         )
 
     @property
-    def native_value(self) -> float:
+    def native_value(self) -> float | None:
         """Return the state of the sensor."""
-        return self.coordinator.data[self._key]
+        data = self.coordinator.data
+        if not data:
+            return None
+
+        # Data might be a list of devices, we assume we need the first one
+        if isinstance(data, list):
+            if not data:
+                return None
+            data = data[0]
+
+        value = None
+        if isinstance(data, dict):
+            value = data.get(self._key)
+        else:
+            value = getattr(data, self._key, None)
+
+        if value is None:
+            return None
+
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return None
 
 
 class SigenPowerSensor(SigenEntity, SensorEntity):
@@ -79,3 +106,11 @@ class SigenEnergySensor(SigenEntity, SensorEntity):
     _attr_device_class = SensorDeviceClass.ENERGY
     _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
     _attr_state_class = SensorStateClass.TOTAL_INCREASING
+
+
+class SigenBatterySensor(SigenEntity, SensorEntity):
+    """Representation of a Sigen Battery Sensor."""
+
+    _attr_device_class = SensorDeviceClass.BATTERY
+    _attr_native_unit_of_measurement = PERCENTAGE
+    _attr_state_class = SensorStateClass.MEASUREMENT
