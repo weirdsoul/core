@@ -35,6 +35,8 @@ async def async_setup_entry(
         ),
         SigenPowerSensor(coordinator, entry, "batteryPower", "Battery Power"),
         SigenBatterySensor(coordinator, entry, "batterySoc", "Battery SOC"),
+        SigenPowerSensor(coordinator, entry, "evPower", "EV Power"),
+        SigenPowerSensor(coordinator, entry, "acPower", "AC Power"),
     ]
 
     async_add_entities(new_devices)
