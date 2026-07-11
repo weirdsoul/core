@@ -9,7 +9,7 @@
   "integration_type": "hub",
   "iot_class": "cloud_polling",
   "quality_scale": "bronze",
-  "requirements": ["sigen==3.0.2"],
+  "requirements": ["sigen==3.0.3"],
   "ssdp": [],
   "version": "1.0.0",
   "zeroconf": []
